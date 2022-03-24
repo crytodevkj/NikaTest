@@ -1,32 +1,36 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
+let riderToken, owner, staking
+
 describe("RiderToken", function () {
-  it("Should return the new riderToken once it's changed", async function () {
+  it("Deploy Token Contract and mint token", async function () {
     const RiderToken = await ethers.getContractFactory("Rider");
-    const riderToken = await RiderToken.deploy("RiderToken", "RT");
+    riderToken = await RiderToken.deploy("RiderToken", "RT");
     await riderToken.deployed();
 
     expect(await riderToken.totalSupply()).to.equal("0");
 
-    const [owner, addr1, addr2, ...addrs] = await ethers.getSigners();
+    [owner] = await ethers.getSigners();
 
     let tx = await riderToken.mint(owner.address, '10000');
     await tx.wait();
 
     expect(await riderToken.totalSupply()).to.equal("10000");
     expect(await riderToken.balanceOf(owner.address)).to.equal("10000");
-
+  })
+  it("Deploy Staking Contract and Set Token Contract Address", async function () {
     const Staking = await ethers.getContractFactory("Staking");
-    const staking = await Staking.deploy();
+    staking = await Staking.deploy();
     await staking.deployed();
 
-    tx = await staking.setTokenAddress(riderToken.address);
+    let tx = await staking.setTokenAddress(riderToken.address);
     await tx.wait();
 
     expect(await staking.rtAddress()).to.equal(riderToken.address);
-
-    tx = await riderToken.approve(staking.address, '100');
+  })
+  it("Stake Token", async function () {
+    let tx = await riderToken.approve(staking.address, '100');
     await tx.wait();
 
     tx = await staking.stake('100');
@@ -41,8 +45,9 @@ describe("RiderToken", function () {
     expect(stakingInfo[2][0].toString()).to.equal('0');
 
     expect(await staking.getTotalClaimable(owner.address)).to.equal('0');
-
-    tx = await riderToken.approve(staking.address, '100');
+  })
+  it("Stake Token again", async function () {
+    let tx = await riderToken.approve(staking.address, '100');
     await tx.wait();
 
     tx = await staking.stake('100');
@@ -58,7 +63,8 @@ describe("RiderToken", function () {
     expect(await staking.getTotalClaimable(owner.address)).to.equal('200');
 
     expect(await riderToken.balanceOf(owner.address)).to.equal('9800');
-
+  })
+  it("Clain Token", async function () {
     tx = await staking.claim('10');
     await tx.wait();
 
@@ -72,8 +78,9 @@ describe("RiderToken", function () {
     expect(stakingInfo[2][1].toString()).to.equal('0');
 
     expect(await staking.getTotalClaimable(owner.address)).to.equal('390');
-
-    tx = await staking.claim('200');
+  })
+  it("Clain Token Again", async function () {
+    let tx = await staking.claim('200');
     await tx.wait();
 
     expect(await riderToken.balanceOf(owner.address)).to.equal("10010");
@@ -86,8 +93,9 @@ describe("RiderToken", function () {
     expect(stakingInfo[2][1].toString()).to.equal('0');
 
     expect(await staking.getTotalClaimable(owner.address)).to.equal('390');
-
-    tx = await staking.unstake('150');
+  })
+  it("Unstake Token", async function () {
+    let tx = await staking.unstake('150');
     await tx.wait();
 
     stakingInfo = await staking.getStakingInfo(owner.address);
@@ -96,8 +104,9 @@ describe("RiderToken", function () {
     expect(stakingInfo[2][0].toString()).to.equal('0');
 
     expect(await riderToken.balanceOf(owner.address)).to.equal('10750');
-
-    tx = await staking.unstake('50');
+  })
+  it("Unstake Token Again", async function () {
+    let tx = await staking.unstake('50');
     await tx.wait();
 
     stakingInfo = await staking.getStakingInfo(owner.address);
